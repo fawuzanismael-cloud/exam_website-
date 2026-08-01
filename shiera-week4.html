@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shiera Developers — Web Development Studio</title>
+
+<!-- Prevent dark-mode flash: read saved/system preference before first paint -->
+<script>
+  (function () {
+    var stored = localStorage.getItem('shiera-theme');
+    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (stored === 'dark' || (!stored && prefersDark)) {
+      document.documentElement.classList.add('dark');
+    }
+  })();
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<!-- Tailwind v4 CDN (dev-only — swap for a CLI/Vite build before shipping to production) -->
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+<style type="text/tailwindcss">
+  /* Drive dark: off a .dark class on <html> instead of the OS media query */
+  @custom-variant dark (&:where(.dark, .dark *));
+
+  /* ---- Shiera Developers brand tokens (Activity: @theme custom properties) ---- */
+  @theme {
+    --color-bg:         #FAFAF9;
+    --color-ink:        #16181D;
+    --color-canvas:     #0D0F14;
+    --color-ink-light:  #EDEEF0;
+    --color-muted:      #6B7280;
+    --color-muted-dark: #9CA3AF;
+    --color-line:       #E2E4E8;
+    --color-line-dark:  #2A2D34;
+    --color-brand:      #6D5EF0;
+    --color-brand-dark: #9B8FFF;
+    --color-amber:      #F2A93B;
+    --color-amber-dark: #FFC266;
+
+    --font-display: "Space Grotesk", ui-sans-serif, sans-serif;
+    --font-body:    "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-mono:    "JetBrains Mono", ui-monospace, monospace;
+  }
+
+  body { background-color: var(--color-bg); color: var(--color-ink); }
+  .dark body { background-color: var(--color-canvas); color: var(--color-ink-light); }
+</style>
+</head>
+
+<body class="font-body antialiased bg-bg text-ink dark:bg-canvas dark:text-ink-light transition-colors duration-300">
+
+<!-- ============================================================
+     COMPONENT 1 — Nav
+     Refactored: was a hand-written .navbar / .nav-links CSS block,
+     now built entirely from Tailwind utility classes.
+     ============================================================ -->
+<header class="sticky top-0 z-50 backdrop-blur bg-bg/85 dark:bg-canvas/85 border-b border-line dark:border-line-dark">
+  <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+    <a href="#top" class="font-display font-semibold text-sm tracking-tight flex items-center gap-1.5">
+      <span class="h-2 w-2 rounded-full bg-brand dark:bg-brand-dark"></span>
+      Shiera Developers
+    </a>
+    <nav class="hidden sm:flex items-center gap-8 font-mono text-xs uppercase tracking-wider text-muted dark:text-muted-dark">
+      <a href="#programs" class="hover:text-ink dark:hover:text-ink-light transition-colors">Programs</a>
+      <a href="#projects" class="hover:text-ink dark:hover:text-ink-light transition-colors">Projects</a>
+      <a href="#contact" class="hover:text-ink dark:hover:text-ink-light transition-colors">Contact</a>
+    </nav>
+
+    <!-- Activity: dark-mode toggle, flips .dark on <html>, persists in localStorage -->
+    <button
+      id="theme-toggle"
+      type="button"
+      aria-label="Toggle dark mode"
+      aria-pressed="false"
+      class="relative w-12 h-6 rounded-full bg-line dark:bg-line-dark transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:focus-visible:outline-brand-dark"
+    >
+      <span id="theme-toggle-dot" class="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-bg dark:bg-canvas shadow flex items-center justify-center text-[10px] transition-transform duration-300 dark:translate-x-6">
+        <span id="theme-toggle-icon">☀</span>
+      </span>
+    </button>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ============================================================
+       Hero — clamp() headline + body copy
+       ============================================================ -->
+  <section class="max-w-5xl mx-auto px-6 pt-20 pb-16 grid md:grid-cols-[1.2fr_1fr] gap-12 items-center">
+    <div>
+      <p class="font-mono text-xs uppercase tracking-wider text-brand dark:text-brand-dark mb-4">Web development studio</p>
+      <h1 class="font-display font-semibold leading-[1.05] text-[clamp(2.25rem,4vw+1rem,3.75rem)]">
+        We turn curious learners into full-stack builders.
+      </h1>
+      <p class="mt-6 text-[clamp(1rem,0.3vw+0.9rem,1.125rem)] leading-relaxed text-muted dark:text-muted-dark max-w-md">
+        Shiera Developers is a hands-on frontend and full-stack curriculum —
+        design tokens, Flexbox, Grid, Tailwind, and real shipped projects.
+        This page is our Month 1, Week 4 submission: Tailwind v4, dark mode,
+        and container queries, built by the cohort.
+      </p>
+      <div class="mt-8 flex gap-4">
+        <a href="#programs" class="font-mono text-xs uppercase tracking-wider bg-ink text-bg dark:bg-ink-light dark:text-canvas px-5 py-3 rounded-full hover:opacity-90 transition-opacity">See curriculum</a>
+        <a href="#projects" class="font-mono text-xs uppercase tracking-wider border border-line dark:border-line-dark px-5 py-3 rounded-full hover:border-ink dark:hover:border-ink-light transition-colors">View projects</a>
+      </div>
+    </div>
+
+    <!-- Signature element: a small "curriculum tracker" card -->
+    <div class="border border-line dark:border-line-dark rounded-2xl p-6 bg-white/60 dark:bg-white/[0.03]">
+      <p class="font-mono text-[10px] uppercase tracking-wider text-muted dark:text-muted-dark mb-4">Month 1 — Progress</p>
+      <ul class="space-y-3 text-sm">
+        <li class="flex items-center justify-between">
+          <span>Week 2 · Design tokens</span>
+          <span class="font-mono text-xs text-brand dark:text-brand-dark">done</span>
+        </li>
+        <li class="flex items-center justify-between">
+          <span>Week 3 · Flexbox &amp; Grid</span>
+          <span class="font-mono text-xs text-brand dark:text-brand-dark">done</span>
+        </li>
+        <li class="flex items-center justify-between">
+          <span>Week 4 · Tailwind v4</span>
+          <span class="font-mono text-xs text-amber dark:text-amber-dark">in progress</span>
+        </li>
+      </ul>
+      <div class="mt-4 h-2 rounded-full bg-line dark:bg-line-dark overflow-hidden">
+        <div class="h-full rounded-full bg-brand dark:bg-brand-dark" style="width:75%"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       COMPONENT 2 — Program cards
+       Refactored: was a hand-written .program-card CSS block,
+       now built entirely from Tailwind utility classes.
+       Activity: container query — the featured card adapts its
+       layout when its own column (not the viewport) is wide.
+       ============================================================ -->
+  <section id="programs" class="max-w-5xl mx-auto px-6 py-16 border-t border-line dark:border-line-dark">
+    <p class="font-mono text-xs uppercase tracking-wider text-brand dark:text-brand-dark mb-2">Curriculum</p>
+    <h2 class="font-display text-2xl sm:text-3xl mb-10">Month 1 · Frontend fundamentals</h2>
+
+    <!-- @container marks this as a query container; children respond with @md:/@lg: -->
+    <div class="@container">
+      <article class="@md:flex @md:items-center gap-8 border border-line dark:border-line-dark rounded-2xl p-6 mb-6 bg-white/60 dark:bg-white/[0.03]">
+        <div class="@md:w-1/3 mb-4 @md:mb-0 rounded-xl bg-brand/10 dark:bg-brand-dark/10 aspect-video flex items-center justify-center font-mono text-xs text-brand dark:text-brand-dark">
+          Week 4
+        </div>
+        <div class="@md:w-2/3">
+          <h3 class="font-display text-lg mb-1">Tailwind v4 &amp; production polish</h3>
+          <p class="text-sm text-muted dark:text-muted-dark leading-relaxed">
+            CDN and build setups, @theme brand tokens, fluid type with clamp(),
+            a persisted dark-mode toggle, and container queries for components
+            that adapt to their own space instead of just the viewport.
+          </p>
+          <p class="font-mono text-[10px] uppercase tracking-wider text-muted dark:text-muted-dark mt-3">
+            This card widens into a row once its own column passes the @md container breakpoint
+          </p>
+        </div>
+      </article>
+    </div>
+
+    <div class="grid sm:grid-cols-2 gap-6">
+      <article class="border border-line dark:border-line-dark rounded-2xl p-6 bg-white/60 dark:bg-white/[0.03]">
+        <h3 class="font-display text-lg mb-1">Week 2 · Design tokens</h3>
+        <p class="text-sm text-muted dark:text-muted-dark leading-relaxed">
+          CSS custom properties for color, spacing, and type — one source of
+          truth that every component reads from.
+        </p>
+      </article>
+      <article class="border border-line dark:border-line-dark rounded-2xl p-6 bg-white/60 dark:bg-white/[0.03]">
+        <h3 class="font-display text-lg mb-1">Week 3 · Flexbox &amp; Grid</h3>
+        <p class="text-sm text-muted dark:text-muted-dark leading-relaxed">
+          One-dimensional and two-dimensional layout, mobile-first, with
+          real breakpoints instead of guesswork.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       Projects — cohort-built work
+       ============================================================ -->
+  <section id="projects" class="max-w-5xl mx-auto px-6 py-16 border-t border-line dark:border-line-dark">
+    <p class="font-mono text-xs uppercase tracking-wider text-brand dark:text-brand-dark mb-2">Shipped by the cohort</p>
+    <h2 class="font-display text-2xl sm:text-3xl mb-10">Team projects</h2>
+
+    <div class="grid sm:grid-cols-2 gap-6">
+      <article class="border border-line dark:border-line-dark rounded-2xl p-6 bg-white/60 dark:bg-white/[0.03]">
+        <h3 class="font-display text-lg mb-1">CodeCraft</h3>
+        <p class="text-sm text-muted dark:text-muted-dark leading-relaxed">
+          A digital product store for web dev resources — Tailwind kits, CSS
+          cheat sheets, HTML templates — with local checkout via CBE and Telebirr.
+        </p>
+      </article>
+      <article class="border border-line dark:border-line-dark rounded-2xl p-6 bg-white/60 dark:bg-white/[0.03]">
+        <h3 class="font-display text-lg mb-1">This site's easter egg</h3>
+        <p class="text-sm text-muted dark:text-muted-dark leading-relaxed">
+          A hidden Konami-code interaction layered into this very page — try
+          the classic sequence on your keyboard.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       COMPONENT 3 — Contact form
+       Refactored: was a hand-written .form / .input CSS block,
+       now built entirely from Tailwind utility classes.
+       ============================================================ -->
+  <section id="contact" class="max-w-5xl mx-auto px-6 py-16 border-t border-line dark:border-line-dark">
+    <p class="font-mono text-xs uppercase tracking-wider text-brand dark:text-brand-dark mb-2">Contact</p>
+    <h2 class="font-display text-2xl sm:text-3xl mb-10">Talk to the cohort</h2>
+
+    <div class="max-w-md space-y-4">
+      <div>
+        <label for="name" class="block font-mono text-xs uppercase tracking-wider text-muted dark:text-muted-dark mb-1.5">Name</label>
+        <input id="name" type="text" class="w-full rounded-lg border border-line dark:border-line-dark bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand dark:focus:ring-brand-dark" placeholder="Your name" />
+      </div>
+      <div>
+        <label for="email" class="block font-mono text-xs uppercase tracking-wider text-muted dark:text-muted-dark mb-1.5">Email</label>
+        <input id="email" type="email" class="w-full rounded-lg border border-line dark:border-line-dark bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand dark:focus:ring-brand-dark" placeholder="you@example.com" />
+      </div>
+      <div>
+        <label for="message" class="block font-mono text-xs uppercase tracking-wider text-muted dark:text-muted-dark mb-1.5">Message</label>
+        <textarea id="message" rows="4" class="w-full rounded-lg border border-line dark:border-line-dark bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand dark:focus:ring-brand-dark" placeholder="What are you building?"></textarea>
+      </div>
+      <button type="button" class="font-mono text-xs uppercase tracking-wider bg-ink text-bg dark:bg-ink-light dark:text-canvas px-5 py-3 rounded-full hover:opacity-90 transition-opacity">
+        Send message
+      </button>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-line dark:border-line-dark">
+  <div class="max-w-5xl mx-auto px-6 py-8 flex flex-col sm:flex-row justify-between gap-2 font-mono text-[11px] text-muted dark:text-muted-dark">
+    <span>© 2026 Shiera Developers — Jimma, Ethiopia</span>
+    <span class="opacity-60">↑ ↑ ↓ ↓ ← → ← → B A</span>
+  </div>
+</footer>
+
+<!-- Hidden Konami easter egg reveal -->
+<div id="egg" class="fixed inset-x-0 bottom-6 flex justify-center pointer-events-none opacity-0 transition-opacity duration-500">
+  <div class="pointer-events-auto font-mono text-xs bg-ink text-bg dark:bg-ink-light dark:text-canvas px-5 py-3 rounded-full shadow-lg">
+    Cohort secret unlocked — nice memory 🎉
+  </div>
+</div>
+
+<script>
+  // Dark mode toggle
+  var root = document.documentElement;
+  var icon = document.getElementById('theme-toggle-icon');
+  var toggle = document.getElementById('theme-toggle');
+
+  function syncIcon() {
+    var isDark = root.classList.contains('dark');
+    icon.textContent = isDark ? '☾' : '☀';
+    toggle.setAttribute('aria-pressed', String(isDark));
+  }
+  syncIcon();
+
+  toggle.addEventListener('click', function () {
+    var isDark = root.classList.toggle('dark');
+    localStorage.setItem('shiera-theme', isDark ? 'dark' : 'light');
+    syncIcon();
+  });
+
+  // Konami code easter egg
+  var sequence = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+  var progress = 0;
+  var egg = document.getElementById('egg');
+
+  document.addEventListener('keydown', function (e) {
+    var key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (key === sequence[progress]) {
+      progress++;
+      if (progress === sequence.length) {
+        egg.classList.remove('opacity-0');
+        egg.classList.add('opacity-100');
+        setTimeout(function () {
+          egg.classList.remove('opacity-100');
+          egg.classList.add('opacity-0');
+        }, 3000);
+        progress = 0;
+      }
+    } else {
+      progress = key === sequence[0] ? 1 : 0;
+    }
+  });
+</script>
+
+</body>
+</html>

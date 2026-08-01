@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Station — Weather Dashboard</title>
+<meta name="description" content="Search any city and read today's conditions plus a 5-day outlook, instrument-panel style." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ---------------------------------------------------
+   Tokens
+--------------------------------------------------- */
+:root {
+  --bg: #0b1220;
+  --bg-panel: #121b2e;
+  --bg-panel-raised: #16233a;
+  --line: #263455;
+  --line-soft: #1a2740;
+
+  --text: #e8edf4;
+  --text-muted: #7c8aa3;
+  --text-dim: #4b5a78;
+
+  --amber: #f2a65a;
+  --amber-dim: #a97440;
+  --cyan: #5ec8d8;
+  --cyan-dim: #3a7f8c;
+  --red: #e0665f;
+
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --radius: 3px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  min-height: 100%;
+}
+
+body {
+  background-image:
+    radial-gradient(circle at 15% -10%, rgba(94, 200, 216, 0.08), transparent 40%),
+    radial-gradient(circle at 90% 10%, rgba(242, 166, 90, 0.06), transparent 35%);
+}
+
+h1, h2 { font-family: var(--font-display); margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+
+a { color: var(--cyan); }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* Faint CRT-ish scanline texture, purely atmospheric, very subtle */
+.scanlines {
+  position: fixed; inset: 0; pointer-events: none; z-index: 50;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.012) 0px,
+    rgba(255,255,255,0.012) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+}
+
+/* ---------------------------------------------------
+   Topbar
+--------------------------------------------------- */
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px clamp(16px, 4vw, 48px);
+  border-bottom: 1px solid var(--line-soft);
+  background: linear-gradient(to bottom, var(--bg-panel), var(--bg));
+}
+
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { color: var(--amber); font-size: 1.1rem; }
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-size: 1rem;
+}
+.brand-sub {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  display: none;
+}
+@media (min-width: 720px) {
+  .brand-sub { display: inline; }
+}
+
+.search {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  flex: 1 1 340px;
+  max-width: 520px;
+}
+
+#city-input {
+  flex: 1;
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--line);
+  border-right: none;
+  color: var(--text);
+  padding: 11px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  border-radius: var(--radius) 0 0 var(--radius);
+  outline: none;
+}
+#city-input::placeholder { color: var(--text-dim); }
+#city-input:focus {
+  border-color: var(--cyan-dim);
+  box-shadow: 0 0 0 1px var(--cyan-dim);
+}
+
+#search-btn {
+  background: var(--amber);
+  color: #1a1206;
+  border: 1px solid var(--amber);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0 20px;
+  cursor: pointer;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  transition: filter 0.15s ease;
+}
+#search-btn:hover { filter: brightness(1.08); }
+#search-btn:active { filter: brightness(0.94); }
+#search-btn:focus-visible,
+#city-input:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------
+   Layout / states
+--------------------------------------------------- */
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: clamp(24px, 5vw, 56px) clamp(16px, 4vw, 24px) 64px;
+}
+
+.state { animation: fade-in 0.35s ease; }
+@keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Idle */
+.state-idle {
+  text-align: center;
+  padding: 40px 16px 20px;
+  color: var(--text-muted);
+}
+.state-idle h1 { color: var(--text); font-size: 1.3rem; margin-bottom: 8px; }
+.state-idle p { max-width: 420px; margin: 0 auto; line-height: 1.6; font-size: 0.88rem; }
+
+.idle-instrument { display: flex; justify-content: center; margin-bottom: 20px; }
+.compass { width: 140px; height: 140px; opacity: 0.55; }
+.compass-ring { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.compass-ring-inner { fill: none; stroke: var(--line-soft); stroke-width: 1; stroke-dasharray: 3 4; }
+.compass-tick { stroke: var(--cyan-dim); stroke-width: 2; }
+.compass-tick.major { stroke: var(--amber); }
+.compass-label { fill: var(--text-dim); font-size: 11px; font-family: var(--font-mono); text-anchor: middle; }
+
+/* Loading */
+.state-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 60px 16px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.needle-spinner {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  position: relative;
+}
+.needle {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 2px; height: 26px;
+  background: var(--amber);
+  transform-origin: bottom center;
+  transform: translate(-50%, -100%);
+  animation: sweep 1.1s linear infinite;
+}
+@keyframes sweep { to { transform: translate(-50%, -100%) rotate(360deg); } }
+
+/* Error */
+.state-error {
+  text-align: center;
+  padding: 48px 16px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.error-mark {
+  width: 44px; height: 44px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  border: 1px solid var(--red);
+  color: var(--red);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.state-error h1 { font-size: 1.15rem; margin-bottom: 8px; }
+.state-error p { color: var(--text-muted); font-size: 0.88rem; line-height: 1.6; margin-bottom: 20px; }
+.retry-btn {
+  background: transparent;
+  border: 1px solid var(--cyan-dim);
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  padding: 9px 18px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.retry-btn:hover { background: rgba(94,200,216,0.08); }
+
+/* ---------------------------------------------------
+   Results
+--------------------------------------------------- */
+.station-id { margin-bottom: 20px; }
+.station-id h1 { font-size: 1.6rem; }
+.station-id p { color: var(--text-muted); font-size: 0.82rem; margin-top: 4px; letter-spacing: 0.02em; }
+
+.primary-instrument {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  justify-content: space-between;
+  background: var(--bg-panel);
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  padding: 28px clamp(20px, 4vw, 36px);
+  margin-bottom: 36px;
+  position: relative;
+  overflow: hidden;
+}
+.primary-instrument::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(242,166,90,0.05), transparent 50%);
+  pointer-events: none;
+}
+
+.primary-instrument-left { min-width: 200px; }
+.temp-readout {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 8vw, 4.6rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--amber);
+  letter-spacing: -0.02em;
+}
+.temp-unit { font-size: 0.42em; color: var(--text-muted); margin-left: 4px; }
+.temp-caption { margin: 10px 0 4px; font-size: 1rem; text-transform: capitalize; }
+.temp-feels { color: var(--text-muted); font-size: 0.82rem; }
+
+.primary-instrument-right { display: flex; align-items: center; flex: 1 1 260px; }
+.gauge-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(110px, 1fr));
+  gap: 18px 28px;
+  width: 100%;
+}
+.gauge {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 2px solid var(--cyan-dim);
+  padding-left: 12px;
+}
+.gauge-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+.gauge-value {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--cyan);
+}
+
+.outlook-header { margin-bottom: 14px; }
+.outlook-header h2 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+}
+
+.forecast-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+@media (max-width: 760px) {
+  .forecast-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+.forecast-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 16px 12px;
+  text-align: center;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.forecast-card:hover { border-color: var(--cyan-dim); transform: translateY(-2px); }
+
+.forecast-day {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.forecast-icon { font-size: 1.5rem; margin-bottom: 8px; }
+.forecast-hi { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; color: var(--amber); }
+.forecast-lo { font-size: 0.82rem; color: var(--text-dim); margin-left: 4px; }
+.forecast-precip {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  color: var(--cyan-dim);
+}
+.forecast-precip.has-rain { color: var(--cyan); }
+
+.attribution {
+  margin-top: 32px;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .state, .needle, .forecast-card { animation: none !important; transition: none !important; }
+}
+
+</style>
+</head>
+<body>
+
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">◎</span>
+      <span class="brand-name">STATION</span>
+      <span class="brand-sub">local conditions, five days out</span>
+    </div>
+
+    <form id="search-form" class="search" autocomplete="off">
+      <label for="city-input" class="sr-only">Search for a city</label>
+      <input
+        id="city-input"
+        name="city"
+        type="text"
+        placeholder="Search a city — e.g. Addis Ababa, Lisbon, Osaka"
+        aria-describedby="search-hint"
+      />
+      <button type="submit" id="search-btn">
+        <span class="btn-label">Read</span>
+      </button>
+    </form>
+    <p id="search-hint" class="search-hint sr-only">Press enter to fetch the latest reading for this city</p>
+  </header>
+
+  <main id="app" class="app">
+
+    <!-- IDLE STATE -->
+    <section id="state-idle" class="state state-idle">
+      <div class="idle-instrument" aria-hidden="true">
+        <svg viewBox="0 0 200 200" class="compass">
+          <circle cx="100" cy="100" r="92" class="compass-ring" />
+          <circle cx="100" cy="100" r="60" class="compass-ring-inner" />
+          <line x1="100" y1="8" x2="100" y2="28" class="compass-tick major" />
+          <line x1="100" y1="192" x2="100" y2="172" class="compass-tick" />
+          <line x1="8" y1="100" x2="28" y2="100" class="compass-tick" />
+          <line x1="192" y1="100" x2="172" y2="100" class="compass-tick" />
+          <text x="100" y="24" class="compass-label">N</text>
+        </svg>
+      </div>
+      <h1>No station selected</h1>
+      <p>Type a city name above and press <strong>Read</strong> to pull its current conditions and five-day outlook.</p>
+    </section>
+
+    <!-- LOADING STATE -->
+    <section id="state-loading" class="state state-loading" hidden>
+      <div class="needle-spinner" aria-hidden="true"><div class="needle"></div></div>
+      <p id="loading-text">Calibrating instruments for “<span id="loading-city"></span>”…</p>
+    </section>
+
+    <!-- ERROR STATE -->
+    <section id="state-error" class="state state-error" hidden role="alert">
+      <div class="error-mark" aria-hidden="true">!</div>
+      <h1 id="error-title">Reading failed</h1>
+      <p id="error-message">Something went wrong.</p>
+      <button id="error-retry" type="button" class="retry-btn">Try again</button>
+    </section>
+
+    <!-- RESULTS STATE -->
+    <section id="state-results" class="state state-results" hidden>
+
+      <div class="station-id">
+        <h1 id="place-name">—</h1>
+        <p id="place-meta">—</p>
+      </div>
+
+      <article class="primary-instrument" id="current-card">
+        <div class="primary-instrument-left">
+          <div class="temp-readout">
+            <span id="current-temp">--</span><span class="temp-unit">°C</span>
+          </div>
+          <p class="temp-caption" id="current-desc">—</p>
+          <p class="temp-feels">Feels like <span id="current-feels">--</span>°C</p>
+        </div>
+        <div class="primary-instrument-right">
+          <div class="gauge-row">
+            <div class="gauge">
+              <span class="gauge-label">Humidity</span>
+              <span class="gauge-value" id="current-humidity">--%</span>
+            </div>
+            <div class="gauge">
+              <span class="gauge-label">Wind</span>
+              <span class="gauge-value" id="current-wind">-- km/h</span>
+            </div>
+            <div class="gauge">
+              <span class="gauge-label">Precip.</span>
+              <span class="gauge-value" id="current-precip">--%</span>
+            </div>
+            <div class="gauge">
+              <span class="gauge-label">UV Index</span>
+              <span class="gauge-value" id="current-uv">--</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <div class="outlook-header">
+        <h2>Five-day outlook</h2>
+      </div>
+      <div class="forecast-row" id="forecast-row"><!-- forecast day cards injected here --></div>
+
+      <p class="attribution">Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></p>
+    </section>
+
+  </main>
+
+  <script type="module">
+// ---------- api.js ----------
+// api.js — talks to Open-Meteo. No key needed, just two plain REST calls:
+// one to turn a city name into coordinates, one to turn coordinates into weather.
+//
+// Both functions throw plain Errors with a message that's safe to show
+// straight to the user — app.js catches them and hands them to render.js.
+
+const GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search";
+const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
+
+/**
+ * Look up a city name and return its best-match location.
+ * @param {string} cityName
+ * @returns {Promise<{name: string, country: string, admin1: string, latitude: number, longitude: number, timezone: string}>}
+ */
+async function geocodeCity(cityName) {
+  const url = `${GEOCODE_URL}?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`;
+
+  let response;
+  try {
+    response = await fetch(url);
+  } catch {
+    // fetch itself only throws on network-level failure (offline, DNS, CORS)
+    throw new Error("Can't reach the geocoding service. Check your connection and try again.");
+  }
+
+  if (!response.ok) {
+    throw new Error(`Geocoding service returned an error (${response.status}). Try again in a moment.`);
+  }
+
+  const data = await response.json();
+
+  if (!data.results || data.results.length === 0) {
+    throw new Error(`No city found matching "${cityName}". Check the spelling, or try a nearby larger city.`);
+  }
+
+  const place = data.results[0];
+  return {
+    name: place.name,
+    country: place.country ?? "",
+    admin1: place.admin1 ?? "",
+    latitude: place.latitude,
+    longitude: place.longitude,
+    timezone: place.timezone ?? "auto",
+  };
+}
+
+/**
+ * Fetch current conditions + a 5-day daily forecast for a coordinate pair.
+ * @param {number} latitude
+ * @param {number} longitude
+ * @param {string} timezone
+ */
+async function getForecast(latitude, longitude, timezone = "auto") {
+  const params = new URLSearchParams({
+    latitude,
+    longitude,
+    timezone,
+    forecast_days: 6, // today + 5 more days
+    current: [
+      "temperature_2m",
+      "apparent_temperature",
+      "relative_humidity_2m",
+      "precipitation_probability",
+      "weather_code",
+      "wind_speed_10m",
+      "uv_index",
+    ].join(","),
+    daily: [
+      "weather_code",
+      "temperature_2m_max",
+      "temperature_2m_min",
+      "precipitation_probability_max",
+    ].join(","),
+  });
+
+  let response;
+  try {
+    response = await fetch(`${FORECAST_URL}?${params.toString()}`);
+  } catch {
+    throw new Error("Can't reach the forecast service. Check your connection and try again.");
+  }
+
+  if (!response.ok) {
+    throw new Error(`Forecast service returned an error (${response.status}). Try again in a moment.`);
+  }
+
+  const data = await response.json();
+
+  if (!data.current || !data.daily) {
+    throw new Error("The forecast service sent back something unexpected. Try again.");
+  }
+
+  return data;
+}
+
+
+// ---------- render.js ----------
+// render.js — the only file that touches the DOM directly.
+// app.js decides *what* happened; this file decides how it looks.
+
+const els = {
+  idle: document.getElementById("state-idle"),
+  loading: document.getElementById("state-loading"),
+  error: document.getElementById("state-error"),
+  results: document.getElementById("state-results"),
+
+  loadingCity: document.getElementById("loading-city"),
+  errorTitle: document.getElementById("error-title"),
+  errorMessage: document.getElementById("error-message"),
+  errorRetry: document.getElementById("error-retry"),
+
+  placeName: document.getElementById("place-name"),
+  placeMeta: document.getElementById("place-meta"),
+
+  currentTemp: document.getElementById("current-temp"),
+  currentDesc: document.getElementById("current-desc"),
+  currentFeels: document.getElementById("current-feels"),
+  currentHumidity: document.getElementById("current-humidity"),
+  currentWind: document.getElementById("current-wind"),
+  currentPrecip: document.getElementById("current-precip"),
+  currentUv: document.getElementById("current-uv"),
+
+  forecastRow: document.getElementById("forecast-row"),
+};
+
+// WMO weather codes -> a short label + a single emoji glyph.
+// Open-Meteo returns these as plain integers; this is the whole official table
+// collapsed into what a dashboard actually needs to say.
+const WEATHER_CODES = {
+  0: ["Clear sky", "☀️"],
+  1: ["Mostly clear", "🌤️"],
+  2: ["Partly cloudy", "⛅"],
+  3: ["Overcast", "☁️"],
+  45: ["Fog", "🌫️"],
+  48: ["Rime fog", "🌫️"],
+  51: ["Light drizzle", "🌦️"],
+  53: ["Drizzle", "🌦️"],
+  55: ["Dense drizzle", "🌧️"],
+  56: ["Freezing drizzle", "🌧️"],
+  57: ["Freezing drizzle", "🌧️"],
+  61: ["Light rain", "🌦️"],
+  63: ["Rain", "🌧️"],
+  65: ["Heavy rain", "🌧️"],
+  66: ["Freezing rain", "🌨️"],
+  67: ["Freezing rain", "🌨️"],
+  71: ["Light snow", "🌨️"],
+  73: ["Snow", "❄️"],
+  75: ["Heavy snow", "❄️"],
+  77: ["Snow grains", "❄️"],
+  80: ["Light showers", "🌦️"],
+  81: ["Showers", "🌧️"],
+  82: ["Violent showers", "⛈️"],
+  85: ["Snow showers", "🌨️"],
+  86: ["Heavy snow showers", "🌨️"],
+  95: ["Thunderstorm", "⛈️"],
+  96: ["Thunderstorm w/ hail", "⛈️"],
+  99: ["Severe thunderstorm", "⛈️"],
+};
+
+function describeWeatherCode(code) {
+  return WEATHER_CODES[code] ?? ["Unknown conditions", "🌡️"];
+}
+
+function setState(name) {
+  els.idle.hidden = name !== "idle";
+  els.loading.hidden = name !== "loading";
+  els.error.hidden = name !== "error";
+  els.results.hidden = name !== "results";
+}
+
+function showIdle() {
+  setState("idle");
+}
+
+function showLoading(cityQuery) {
+  els.loadingCity.textContent = cityQuery;
+  setState("loading");
+}
+
+function showError(message, { title = "Reading failed" } = {}) {
+  els.errorTitle.textContent = title;
+  els.errorMessage.textContent = message;
+  setState("error");
+}
+
+function onRetry(handler) {
+  els.errorRetry.addEventListener("click", handler);
+}
+
+/**
+ * Paint the full results view: place header, current-conditions instrument,
+ * and the 5-day forecast row.
+ * @param {object} place - from api.geocodeCity
+ * @param {object} forecast - from api.getForecast
+ */
+function showResults(place, forecast) {
+  const locationLabel = [place.admin1, place.country].filter(Boolean).join(", ");
+  els.placeName.textContent = place.name;
+  els.placeMeta.textContent = locationLabel || "Coordinates on file";
+
+  const [desc] = describeWeatherCode(forecast.current.weather_code);
+  els.currentTemp.textContent = Math.round(forecast.current.temperature_2m);
+  els.currentDesc.textContent = desc;
+  els.currentFeels.textContent = Math.round(forecast.current.apparent_temperature);
+  els.currentHumidity.textContent = `${Math.round(forecast.current.relative_humidity_2m)}%`;
+  els.currentWind.textContent = `${Math.round(forecast.current.wind_speed_10m)} km/h`;
+  els.currentPrecip.textContent = `${Math.round(forecast.current.precipitation_probability ?? 0)}%`;
+  els.currentUv.textContent = forecast.current.uv_index != null ? forecast.current.uv_index.toFixed(1) : "—";
+
+  renderForecastRow(forecast.daily);
+  setState("results");
+}
+
+function renderForecastRow(daily) {
+  els.forecastRow.innerHTML = "";
+
+  // Skip index 0 (today, already shown in the primary instrument) and show the next 5 days.
+  const dayCount = Math.min(5, daily.time.length - 1);
+
+  for (let i = 1; i <= dayCount; i++) {
+    const date = new Date(daily.time[i]);
+    const dayLabel = date.toLocaleDateString(undefined, { weekday: "short" });
+    const [desc, icon] = describeWeatherCode(daily.weather_code[i]);
+    const hi = Math.round(daily.temperature_2m_max[i]);
+    const lo = Math.round(daily.temperature_2m_min[i]);
+    const precip = Math.round(daily.precipitation_probability_max?.[i] ?? 0);
+
+    const card = document.createElement("article");
+    card.className = "forecast-card";
+    card.setAttribute("aria-label", `${dayLabel}: ${desc}, high ${hi}, low ${lo}`);
+    card.innerHTML = `
+      <div class="forecast-day">${dayLabel}</div>
+      <div class="forecast-icon" aria-hidden="true">${icon}</div>
+      <div>
+        <span class="forecast-hi">${hi}°</span><span class="forecast-lo">/ ${lo}°</span>
+      </div>
+      <div class="forecast-precip ${precip >= 30 ? "has-rain" : ""}">${precip}% precip</div>
+    `;
+    els.forecastRow.appendChild(card);
+  }
+}
+
+
+// ---------- app.js ----------
+// app.js — the conductor. Listens for the search, calls the API module,
+// and tells render.js which state to show. No DOM writes and no fetch calls
+// live here directly; this file just sequences the other two.
+
+
+const form = document.getElementById("search-form");
+const input = document.getElementById("city-input");
+
+let lastQuery = "";
+
+async function runSearch(cityQuery) {
+  const trimmed = cityQuery.trim();
+
+  if (!trimmed) {
+    showError("Type a city name first — the field's empty.", { title: "Nothing to search" });
+    return;
+  }
+
+  lastQuery = trimmed;
+  showLoading(trimmed);
+
+  try {
+    const place = await geocodeCity(trimmed);
+    const forecast = await getForecast(place.latitude, place.longitude, place.timezone);
+    showResults(place, forecast);
+  } catch (err) {
+    showError(err.message || "Something unexpected happened. Try again.");
+  }
+}
+
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  runSearch(input.value);
+});
+
+onRetry(() => {
+  if (lastQuery) {
+    runSearch(lastQuery);
+  } else {
+    showIdle();
+  }
+});
+
+// Start on the idle state — never render an empty shell with nothing to say.
+showIdle();
+
+</script>
+</body>
+</html>

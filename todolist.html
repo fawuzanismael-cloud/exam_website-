@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List - DOM Deep Dive Project</title>
+    <style>
+        /* ===== CSS RESET & BASE ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px;
+        }
+
+        /* ===== MAIN CONTAINER ===== */
+        .app-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 550px;
+            overflow: hidden;
+        }
+
+        /* ===== HEADER ===== */
+        .app-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .app-header h1 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+
+        .app-header .stats {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 8px;
+        }
+
+        .app-header .stats span {
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 3px 10px;
+            border-radius: 12px;
+            margin: 0 3px;
+        }
+
+        /* ===== FORM ===== */
+        #todo-form {
+            display: flex;
+            padding: 20px;
+            gap: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        #todo-form input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+            outline: none;
+        }
+
+        #todo-form input:focus {
+            border-color: #667eea;
+        }
+
+        #todo-form input::placeholder {
+            color: #aaa;
+        }
+
+        #todo-form button {
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        #todo-form button:hover {
+            transform: translateY(-2px);
+            opacity: 0.9;
+        }
+
+        #todo-form button:active {
+            transform: translateY(0);
+        }
+
+        /* ===== TODO LIST ===== */
+        #todo-list {
+            list-style: none;
+            padding: 10px 0;
+            min-height: 200px;
+        }
+
+        /* ===== EMPTY STATE ===== */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+        }
+
+        /* ===== TODO ITEM ===== */
+        .todo-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s ease;
+            cursor: grab;
+            animation: slideIn 0.3s ease;
+        }
+
+        .todo-item:active {
+            cursor: grabbing;
+        }
+
+        .todo-item:hover {
+            background-color: #f9f9f9;
+        }
+
+        .todo-item.dragging {
+            opacity: 0.5;
+            background-color: #f0f0f0;
+        }
+
+        .todo-item.drag-over {
+            border-top: 3px solid #667eea;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* ===== DRAG HANDLE ===== */
+        .drag-handle {
+            color: #ccc;
+            margin-right: 12px;
+            cursor: grab;
+            font-size: 1.2rem;
+            user-select: none;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        /* ===== CHECKBOX ===== */
+        .todo-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border: 2px solid #d0d0d0;
+            border-radius: 50%;
+            margin-right: 14px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .todo-checkbox:checked {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+        }
+
+        .todo-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* ===== TODO TEXT ===== */
+        .todo-text {
+            flex: 1;
+            font-size: 1rem;
+            color: #333;
+            transition: color 0.2s ease, text-decoration 0.2s ease;
+            word-break: break-word;
+        }
+
+        .todo-item.done .todo-text {
+            color: #bbb;
+            text-decoration: line-through;
+        }
+
+        /* ===== EDIT INPUT (appears on double-click) ===== */
+        .todo-edit-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            margin-right: 10px;
+        }
+
+        /* ===== BUTTONS ===== */
+        .todo-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .btn-edit,
+        .btn-delete {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-edit {
+            background-color: #e8f0fe;
+            color: #667eea;
+        }
+
+        .btn-edit:hover {
+            background-color: #d0e3fc;
+        }
+
+        .btn-delete {
+            background-color: #fce8e8;
+            color: #e74c3c;
+        }
+
+        .btn-delete:hover {
+            background-color: #fad0d0;
+        }
+
+        /* ===== FOOTER ===== */
+        .app-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-top: 1px solid #e0e0e0;
+            background: #fafafa;
+        }
+
+        .items-left {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .btn-clear-completed {
+            background: none;
+            border: none;
+            color: #e74c3c;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: opacity 0.2s ease;
+        }
+
+        .btn-clear-completed:hover {
+            opacity: 0.7;
+            text-decoration: underline;
+        }
+
+        .btn-clear-completed:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            text-decoration: none;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 480px) {
+            body {
+                padding: 20px 10px;
+            }
+
+            .app-header h1 {
+                font-size: 1.5rem;
+            }
+
+            #todo-form {
+                flex-direction: column;
+                padding: 15px;
+            }
+
+            #todo-form button {
+                width: 100%;
+            }
+
+            .todo-item {
+                padding: 12px 15px;
+            }
+
+            .app-footer {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- ===== HEADER ===== -->
+        <header class="app-header">
+            <h1>📝 My Todo List</h1>
+            <p class="stats">
+                <span id="total-count">0</span> total · 
+                <span id="done-count">0</span> done · 
+                <span id="pending-count">0</span> pending
+            </p>
+        </header>
+
+        <!-- ===== FORM (uses submit event) ===== -->
+        <form id="todo-form" autocomplete="off">
+            <input 
+                type="text" 
+                name="title" 
+                placeholder="What needs to be done?" 
+                required 
+                maxlength="200"
+                aria-label="New todo title"
+            >
+            <button type="submit">Add Todo</button>
+        </form>
+
+        <!-- ===== TODO LIST (event delegation happens here) ===== -->
+        <ul id="todo-list" aria-label="Todo list">
+            <!-- Todos rendered dynamically by JavaScript -->
+        </ul>
+
+        <!-- ===== FOOTER ===== -->
+        <footer class="app-footer">
+            <span class="items-left" id="items-left">0 items left</span>
+            <button class="btn-clear-completed" id="clear-completed" disabled>
+                Clear completed
+            </button>
+        </footer>
+    </div>
+
+    <script>
+        // ============================================
+        // WEEK 3 — JAVASCRIPT DEEP DIVE
+        // Concepts: DOM Manipulation, Events, Event Delegation,
+        //           State-then-Render Pattern, localStorage
+        // ============================================
+
+        // ---------- SELECTING ELEMENTS (Section 1) ----------
+        // Use querySelector to find elements — same CSS syntax you know
+        const todoForm = document.querySelector("#todo-form");
+        const todoInput = document.querySelector("input[name='title']");
+        const todoList = document.querySelector("#todo-list");
+        const totalCountEl = document.querySelector("#total-count");
+        const doneCountEl = document.querySelector("#done-count");
+        const pendingCountEl = document.querySelector("#pending-count");
+        const itemsLeftEl = document.querySelector("#items-left");
+        const clearCompletedBtn = document.querySelector("#clear-completed");
+
+        // ---------- localStorage KEY (Section 5) ----------
+        // v1 allows future data migration without breaking existing users
+        const STORAGE_KEY = "shiera.todos.v1";
+
+        // ---------- STATE (Section 4) ----------
+        // THE BRAIN — single source of truth. NEVER mutate directly.
+        // Always create NEW arrays: [...todos, item], .map(), .filter()
+        let todos = [];
+
+        // ---------- PERSISTENCE (Section 5) ----------
+        // SAVE — Convert array to JSON string, store in browser
+        function persist() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+        }
+
+        // LOAD — Read JSON string from browser, convert back to array
+        function hydrate() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return; // No saved data? Keep default empty array
+
+            try {
+                todos = JSON.parse(raw); // JSON string → real array
+            } catch (error) {
+                console.warn("Corrupted localStorage data, starting fresh.");
+                todos = []; // Corrupted? Start clean instead of crashing
+            }
+        }
+
+        // ---------- RENDER (Section 4) ----------
+        // render()'s ONLY job: look at the todos array, draw it on screen
+        // Never touch the DOM directly outside this function for todo items
+        function render() {
+            // If no todos, show empty state
+            if (todos.length === 0) {
+                todoList.innerHTML = `
+                    <li class="empty-state">
+                        <div class="icon">📋</div>
+                        <p>No todos yet. Add one above!</p>
+                    </li>
+                `;
+            } else {
+                // replaceChildren + spread + map — creates all <li> elements at once
+                todoList.replaceChildren(
+                    ...todos.map((todo, index) => {
+                        const li = document.createElement("li");
+                        li.className = `todo-item ${todo.done ? "done" : ""}`;
+                        li.dataset.id = todo.id; // Stash id so clicks can find it
+                        li.draggable = true; // Enable drag-and-drop
+
+                        li.innerHTML = `
+                            <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+                            <input 
+                                type="checkbox" 
+                                class="todo-checkbox" 
+                                ${todo.done ? "checked" : ""}
+                                aria-label="Mark as ${todo.done ? 'incomplete' : 'complete'}"
+                            >
+                            <span class="todo-text">${escapeHtml(todo.title)}</span>
+                            <div class="todo-actions">
+                                <button class="btn-edit" aria-label="Edit todo">✏️</button>
+                                <button class="btn-delete" aria-label="Delete todo">🗑️</button>
+                            </div>
+                        `;
+
+                        // Drag events
+                        li.addEventListener("dragstart", handleDragStart);
+                        li.addEventListener("dragover", handleDragOver);
+                        li.addEventListener("drop", handleDrop);
+                        li.addEventListener("dragend", handleDragEnd);
+
+                        return li;
+                    })
+                );
+            }
+
+            // Update stats in header and footer
+            updateStats();
+        }
+
+        // ---------- HELPER: Escape HTML to prevent XSS ----------
+        // Using textContent is safer than innerHTML for user input
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = text; // textContent NEVER executes HTML
+            return div.innerHTML;
+        }
+
+        // ---------- UPDATE STATS ----------
+        function updateStats() {
+            const total = todos.length;
+            const done = todos.filter(t => t.done).length;
+            const pending = total - done;
+
+            totalCountEl.textContent = total;
+            doneCountEl.textContent = done;
+            pendingCountEl.textContent = pending;
+            itemsLeftEl.textContent = `${pending} item${pending !== 1 ? "s" : ""} left`;
+
+            // Enable/disable "Clear completed" button
+            clearCompletedBtn.disabled = done === 0;
+        }
+
+        // ---------- STATE MUTATIONS (Section 4) ----------
+        // Pattern: Update array → persist → render
+        // ALWAYS create new arrays, never mutate
+
+        function addTodo(title) {
+            // Create NEW array with spread operator (not push!)
+            todos = [
+                ...todos,
+                {
+                    id: crypto.randomUUID(), // Unique ID
+                    title: title.trim(),
+                    done: false,
+                    createdAt: Date.now()
+                }
+            ];
+            persist(); // Save to localStorage
+            render(); // Redraw screen
+        }
+
+        function toggleTodo(id) {
+            // map creates a NEW array (not mutating the old one)
+            todos = todos.map(todo =>
+                todo.id === id
+                    ? { ...todo, done: !todo.done } // Spread creates new object
+                    : todo
+            );
+            persist();
+            render();
+        }
+
+        function deleteTodo(id) {
+            // filter creates a NEW array without the deleted item
+            todos = todos.filter(todo => todo.id !== id);
+            persist();
+            render();
+        }
+
+        function editTodo(id, newTitle) {
+            const trimmed = newTitle.trim();
+            if (!trimmed) {
+                // Empty title? Delete the todo instead
+                deleteTodo(id);
+                return;
+            }
+            todos = todos.map(todo =>
+                todo.id === id
+                    ? { ...todo, title: trimmed }
+                    : todo
+            );
+            persist();
+            render();
+        }
+
+        function clearCompleted() {
+            todos = todos.filter(todo => !todo.done);
+            persist();
+            render();
+        }
+
+        // ---------- DRAG AND DROP (Bonus) ----------
+        let draggedItemId = null;
+
+        function handleDragStart(event) {
+            const item = event.target.closest("[data-id]");
+            if (!item) return;
+            draggedItemId = item.dataset.id;
+            item.classList.add("dragging");
+            event.dataTransfer.effectAllowed = "move";
+            // Needed for Firefox
+            event.dataTransfer.setData("text/plain", draggedItemId);
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault(); // Allow drop
+            event.dataTransfer.dropEffect = "move";
+            const item = event.target.closest("[data-id]");
+            if (item && item.dataset.id !== draggedItemId) {
+                // Remove drag-over from all items first
+                document.querySelectorAll(".drag-over").forEach(el =>
+                    el.classList.remove("drag-over")
+                );
+                item.classList.add("drag-over");
+            }
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            const dropTarget = event.target.closest("[data-id]");
+            if (!dropTarget || !draggedItemId) return;
+
+            const dropId = dropTarget.dataset.id;
+
+            // Remove drag-over class
+            document.querySelectorAll(".drag-over").forEach(el =>
+                el.classList.remove("drag-over")
+            );
+
+            if (draggedItemId === dropId) return; // Dropped on itself
+
+            // Reorder the array
+            const draggedIndex = todos.findIndex(t => t.id === draggedItemId);
+            const dropIndex = todos.findIndex(t => t.id === dropId);
+
+            if (draggedIndex === -1 || dropIndex === -1) return;
+
+            // Create NEW array with reordered items
+            const newTodos = [...todos];
+            const [removed] = newTodos.splice(draggedIndex, 1);
+            newTodos.splice(dropIndex, 0, removed);
+
+            todos = newTodos;
+            persist();
+            render();
+        }
+
+        function handleDragEnd(event) {
+            const item = event.target.closest("[data-id]");
+            if (item) item.classList.remove("dragging");
+            document.querySelectorAll(".drag-over").forEach(el =>
+                el.classList.remove("drag-over")
+            );
+            draggedItemId = null;
+        }
+
+        // ---------- EVENT LISTENERS ----------
+
+        // FORM SUBMIT (Section 2) — Always use form submit, not button click
+        todoForm.addEventListener("submit", (event) => {
+            event.preventDefault(); // ⚠️ CRITICAL: Stops page reload!
+
+            const title = todoInput.value.trim();
+            if (!title) return; // Don't add empty todos
+
+            addTodo(title);
+            todoForm.reset(); // Clear the input
+            todoInput.focus(); // Put cursor back for next todo
+        });
+
+        // EVENT DELEGATION (Section 3)
+        // ONE listener on the parent <ul> handles ALL items — even future ones!
+        todoList.addEventListener("click", (event) => {
+            // Step 1: Find which <li> was clicked (walk up from target)
+            const item = event.target.closest("[data-id]");
+            if (!item) return; // Clicked empty space? Ignore.
+
+            // Step 2: Read the id stored on the <li>
+            const id = item.dataset.id;
+
+            // Step 3: What specifically was clicked?
+            if (event.target.matches(".todo-checkbox")) {
+                // Checkbox clicked — toggle done state
+                toggleTodo(id);
+            } else if (event.target.closest(".btn-delete")) {
+                // Delete button clicked
+                deleteTodo(id);
+            } else if (event.target.closest(".btn-edit")) {
+                // Edit button clicked — replace text with input field
+                startEditing(item, id);
+            }
+        });
+
+        // DOUBLE-CLICK to edit (alternative to edit button)
+        todoList.addEventListener("dblclick", (event) => {
+            const todoText = event.target.closest(".todo-text");
+            if (!todoText) return;
+            const item = todoText.closest("[data-id]");
+            if (!item) return;
+            startEditing(item, item.dataset.id);
+        });
+
+        // CLEAR COMPLETED button
+        clearCompletedBtn.addEventListener("click", () => {
+            clearCompleted();
+        });
+
+        // ---------- INLINE EDITING ----------
+        function startEditing(item, id) {
+            // Find the todo in our state
+            const todo = todos.find(t => t.id === id);
+            if (!todo) return;
+
+            // Find the text span
+            const textSpan = item.querySelector(".todo-text");
+            if (!textSpan) return;
+
+            // Replace span with input
+            const input = document.createElement("input");
+            input.type = "text";
+            input.className = "todo-edit-input";
+            input.value = todo.title;
+            textSpan.replaceWith(input);
+            input.focus();
+            input.select(); // Select all text for quick editing
+
+            // Save on Enter or blur (lose focus)
+            function saveEdit() {
+                editTodo(id, input.value);
+            }
+
+            function cancelEdit() {
+                // Just re-render to restore original state
+                render();
+            }
+
+            input.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    saveEdit();
+                } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    cancelEdit();
+                }
+            });
+
+            input.addEventListener("blur", () => {
+                saveEdit();
+            });
+        }
+
+        // ---------- KEYBOARD SHORTCUT ----------
+        // Press "/" to focus the input from anywhere on the page
+        document.addEventListener("keydown", (event) => {
+            // Don't trigger if already typing in an input
+            if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA") {
+                return;
+            }
+            if (event.key === "/") {
+                event.preventDefault();
+                todoInput.focus();
+            }
+        });
+
+        // ---------- INITIALIZATION ----------
+        // 1. Load saved data from localStorage
+        hydrate();
+        // 2. Draw the loaded data on screen
+        render();
+        // 3. Focus the input so user can start typing immediately
+        todoInput.focus();
+
+        // ---------- CONSOLE MESSAGE ----------
+        console.log("✅ Todo App initialized!");
+        console.log(`📦 Loaded ${todos.length} todos from localStorage`);
+        console.log("💡 Tips:");
+        console.log("  - Press '/' to focus the input");
+        console.log("  - Double-click a todo to edit");
+        console.log("  - Drag the ⋮⋮ handle to reorder");
+        console.log("  - Data persists across refreshes!");
+    </script>
+</body>
+</html>
